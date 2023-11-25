@@ -97,44 +97,93 @@ app.post("/api/users/:_id/exercises", async (req, res) => {
     });
 });
 
-app.get("/api/users/:_id/logs", async (req, res) => {
-  const { _id } = req.params;
-  const { from, to, limit } = req.query;
+// app.get("/api/users/:_id/logs", async (req, res) => {
+//   const { _id } = req.params;
+//   const { from, to, limit } = req.query;
 
-  const user = await User.findById(_id);
+//   const user = await User.findById(_id);
 
-  if (!user) res.json({ error: "User not found" });
+//   if (!user) res.json({ error: "User not found" });
 
-  if (from && to && limit) {
-    const exercises = user.exercises
-      .filter((exercise) => {
-        const date = new Date(exercise.date);
-        return date >= new Date(from) && date <= new Date(to);
-      })
-      .slice(0, parseInt(limit));
+//   if (from && to && limit) {
+//     const exercises = user.exercises
+//       .filter((exercise) => {
+//         const date = new Date(exercise.date);
+//         return date >= new Date(from) && date <= new Date(to);
+//       })
+//       .slice(0, parseInt(limit));
 
-    return res.json({
-      username: user.username,
-      count: exercises.length,
-      _id: user._id,
-      log: exercises.map(({ description, duration, date }) => ({
-        description,
-        duration,
-        date,
-      })),
-    });
-  }
+//     return res.json({
+//       username: user.username,
+//       count: exercises.length,
+//       _id: user._id,
+//       logs: exercises.map(({ description, duration, date }) => ({
+//         description,
+//         duration,
+//         date,
+//       })),
+//     });
+//   }
 
-  res.json({
-    username: user.username,
-    count: user.exercises.length,
-    _id: user._id,
-    log: user.exercises.map(({ description, duration, date }) => ({
-      description,
-      duration,
-      date,
-    })),
-  });
+//   res.json({
+//     username: user.username,
+//     count: user.exercises.length,
+//     _id: user._id,
+//     log: user.exercises.map(({ description, duration, date }) => ({
+//       description,
+//       duration,
+//       date,
+//     })),
+//   });
+// });
+
+app.get('/api/users/:_id/logs', (req, res) => {
+
+  User.findById(req.params._id).then((data) => {
+    let limit = data.exercises.length;
+    let from = '1970-01-01';
+    let to = '2038-01-18';
+
+    if (typeof req.query.from != 'undefined') {
+      from = req.query.from;
+    }
+    if (typeof req.query.to != 'undefined') {
+      to = req.query.to;
+    }
+    if (typeof req.query.limit != 'undefined') {
+      limit = parseInt(req.query.limit);
+    }
+
+    let fromF = new Date(from).toDateString();
+    let toF = new Date(to).toDateString();
+
+    let ans = data.exercises.filter(q =>
+      new Date(q.date).getTime() >= new Date(from).getTime() &&
+      new Date(q.date).getTime() < new Date(to).getTime()
+    );
+
+    let resp = {
+      "_id": req.params._id,
+      "username": data.username
+    };
+
+    if (from != '1970-01-01') resp.from = fromF;
+    if (to != '2038-01-18') resp.to = toF;
+
+    resp.count = ans.slice(0, limit).length;
+    resp.log = ans.slice(0, limit);
+
+    res.json(resp);
+
+    if (typeof req.query.from != 'undefined' ||
+      typeof req.query.to != 'undefined' ||
+      typeof req.query.limit != 'undefined') {
+      console.log(req._parsedOriginalUrl.path);
+      console.log(resp);
+    }
+  }).catch((err) => {
+    res.json({ error: err.message })
+  })
 });
 
 const listener = app.listen(process.env.PORT || 3000, () => {
